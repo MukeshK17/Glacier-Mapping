@@ -7,7 +7,7 @@ import numpy as np
 import albumentations as A
 from albumentations.pytorch import ToTensorV2
 
-# import the directories for the datasets
+# Define paths to the rater and mask directories
 himachal_raster = ""
 himachal_mask = ""
 
@@ -129,8 +129,7 @@ def get_dataloaders():
 def get_ordered_loader(image_dir, mask_dir, batch_size=32):
     dataset = MultiBandSegmentationDataset(image_dir, mask_dir,transform=None)
     return DataLoader(dataset, batch_size=batch_size, shuffle=False, pin_memory=True, num_workers=4)
-
-# plotting some of the data to check if they are properly matched
+# Create test loaders for each region
 test_loader1 = get_ordered_loader(himachal_raster, himachal_mask, batch_size=8)
 test_loader2 = get_ordered_loader(himlad_raster, himlad_mask, batch_size=8)
 test_loader3 = get_ordered_loader(sikkim_raster, sikkim_mask, batch_size=8)
