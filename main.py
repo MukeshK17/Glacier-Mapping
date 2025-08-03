@@ -25,8 +25,8 @@ from dataloader import get_dataloaders, get_test_loaders
 train_loader, val_loader = get_dataloaders()
 test_loader1, test_loader2, test_loader3, test_loader4, test_loader5 = get_test_loaders()
 
-model = segformer_model.to(device) # Change to ResUNet() if you want to use ResUNet model
-criterion = FocalDiceTverskyLoss  # Change to DiceIoUSSIMLoss or DiceBCELoss as needed
+model = segformer_model().to(device) # Change to ResUNet() if you want to use ResUNet model
+criterion = FocalDiceTverskyLoss()  # Change to DiceIoUSSIMLoss or DiceBCELoss as needed
 
 # Train the model
 train_data = train_model(model, train_loader, val_loader, criterion = criterion, epochs=500, patience=25, lr=1e-5)
