@@ -42,6 +42,15 @@ test_metrics4, pred4, gt4, rt4, cm4 = evaluate(model, test_loader4, return_predi
 test_metrics5, pred5, gt5, rt5, cm5 = evaluate(model, test_loader5, return_predictions = True)
 
 
+def get_test_output():
+    return {
+        "Himachal": (test_metrics1, pred1, gt1, rt1, cm1),
+        "Himachal Ladakh": (test_metrics2, pred2, gt2, rt2, cm2),
+        "Sikkim": (test_metrics3, pred3, gt3, rt3, cm3),
+        "Kashmir": (test_metrics4, pred4, gt4, rt4, cm4),
+        "Uttrakhand": (test_metrics5, pred5, gt5, rt5, cm5),
+    }
+
 # Report Metrices 
 Region_names = ['Himachal', 'Himachal Ladakh', 'Sikkim', 'Kashmir', 'Uttrakhand']
 metrics_list = [test_metrics1, test_metrics2, test_metrics3, test_metrics4, test_metrics5]
