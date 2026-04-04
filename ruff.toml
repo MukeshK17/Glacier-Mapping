@@ -1,0 +1,56 @@
+# ruff.toml
+
+# Target Python version
+target-version = "py310"
+
+# Max line length (common standard)
+line-length = 88
+
+# Enable useful rule sets
+select = [
+    "E",   # pycodestyle errors
+    "F",   # pyflakes
+    "W",   # warnings
+    "I",   # import sorting
+    "N",   # naming conventions
+    "UP",  # pyupgrade (modern Python)
+    "B",   # bugbear (common bugs)
+    "A",   # builtins shadowing
+    "C4",  # comprehensions
+    "SIM", # simplifications
+]
+
+# Ignore rules that are annoying or not useful for ML workflows
+ignore = [
+    "E501",  # line too long (handled by formatter)
+    "B008",  # function calls in default args (common in ML configs)
+]
+
+# Allow auto-fixing
+fix = true
+
+# Exclude unnecessary directories
+exclude = [
+    ".git",
+    ".venv",
+    "__pycache__",
+    "build",
+    "dist",
+    "weights",
+    "Predictions",
+]
+
+# Import sorting settings
+[lint.isort]
+known-first-party = ["models", "losses", "dataloader"]
+combine-as-imports = true
+
+# Naming convention tweaks (optional)
+[lint.pep8-naming]
+classmethod-decorators = ["classmethod"]
+
+# Formatting (ruff formatter)
+[format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "auto"
