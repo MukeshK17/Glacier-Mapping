@@ -1,6 +1,6 @@
-import torch
 import matplotlib.pyplot as plt
 import pandas as pd
+import torch
 
 # the reason for this files is to compute the average channel contributions for the entire dataset so that unnecessary channels could be removed
 # this is done by computing the gradients of the output with respect to the input channels
@@ -19,31 +19,33 @@ def compute_average_channel_contributions(model, dataloader, device, band_names=
     channel_sums = torch.zeros(num_bands).to(device)
     total_batches = 0
 
-    for X, Y in dataloader:
-        X = X.to(device)
-        X.requires_grad = True
+    for x, _ in dataloader:
+        x = x.to(device)
+        x.requires_grad = True
         model.zero_grad()
 
         # Forward pass
-        output = model(X)
-        output = output.logits  
-        output = torch.sigmoid(output)  
-        
+        output = model(x)
+        output = output.logits if hasattr(output, "logits") else output
+        output = torch.sigmoid(output)
+
+        if x.grad is not None:
+            x.grad.zero_()
 
         loss = output.mean()
         loss.backward()
 
-        grads = X.grad.abs().mean(dim=[0, 2, 3])  # Mean over batch, H, W
+        grads = x.grad.abs().mean(dim=[0, 2, 3])  # Mean over batch, H, W
         channel_sums += grads
         total_batches += 1
 
     # Normalize
     contributions = (channel_sums / total_batches)
-    contributions = contributions / contributions.sum() * 100  
+    contributions = contributions / contributions.sum() * 100
 
     contributions_np = contributions.detach().cpu().numpy()
 
-    
+
     if band_names is None:
         band_names = [f"Band {i+1}" for i in range(num_bands)]
 
@@ -59,6 +61,3 @@ def compute_average_channel_contributions(model, dataloader, device, band_names=
     plt.show()
 
     return band_data
-
-# callable example usage:
-# band_data = compute_average_channel_contributions(model, test_loader, device)
