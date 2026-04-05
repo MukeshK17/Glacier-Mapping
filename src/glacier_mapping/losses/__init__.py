@@ -1,3 +1,3 @@
-from losses.DiceBCE import *
-from losses.FocalDiceTversky import *       
-from losses.DiceIoUSSIM import *
+from .DiceBCE import *
+from .DiceIoUSSIM import *
+from .FocalDiceTversky import *

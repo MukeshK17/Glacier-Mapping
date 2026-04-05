@@ -1,9 +1,11 @@
+import os
+
+import numpy as np
 import rasterio
-from rasterio.warp import reproject, Resampling
 from rasterio.enums import Resampling as ResampleEnum
 from rasterio.transform import Affine
-import numpy as np
-import os
+from rasterio.warp import reproject
+
 
 def reproject_mask_to_raster(mask_path, raster_path):
     """Reproject mask to exactly match raster’s CRS, shape, and transform."""
@@ -77,14 +79,8 @@ def extract_aligned_patches(raster_path, mask_path, output_dir, patch_size=128):
 
                 mask_path_out = os.path.join(output_dir, 'masks', f'{patch_id}.tif')
                 with rasterio.open(mask_path_out, 'w', **mask_profile_copy) as dst:
-                    dst.write(mask_patch)
+                    dst.write(mask_patch[0], 1)
 
                 patch_count += 1
 
         print(f" {patch_count} patches saved with correct geolocation alignment.")
-
-# Example usage
-raster_path = ""
-mask_path = ""
-output_dir = ""
-extract_aligned_patches(raster_path, mask_path, output_dir, patch_size=128)

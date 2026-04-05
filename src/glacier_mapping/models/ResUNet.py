@@ -25,7 +25,7 @@ class ResidualBlock(nn.Module):
 class ResUNet(nn.Module):
     def __init__(self, in_channels=18, out_channels=1):
         super().__init__()
-        self.init_conv = nn.Conv2d(in_channels, 64, kernel_size=3, padding=1)
+        self.init_conv = nn.Conv2d(in_channels, 64, kernel_size=3, padding=1, bias = False)
         self.enc1 = ResidualBlock(64, 64)
         self.enc2 = ResidualBlock(64, 128)
         self.enc3 = ResidualBlock(128, 256)
@@ -56,4 +56,3 @@ class ResUNet(nn.Module):
         x = self.up4(x)
         x = self.dec4(torch.cat([x, x1], dim=1))
         return self.final_conv(x)
-    

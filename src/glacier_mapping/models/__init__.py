@@ -1,2 +1,2 @@
-from models.ResUNet import *
-from models.SegFormerb4 import *
+from .ResUNet import *
+from .SegFormerb4 import *

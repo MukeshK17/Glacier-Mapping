@@ -1,44 +1,32 @@
-import re
-from torch.utils.data import Dataset, DataLoader, ConcatDataset, Subset, random_split
-import rasterio
 import os
-import torch
+import re
+
+import albumentations as a
 import numpy as np
-import albumentations as A
+import rasterio
+import torch
 from albumentations.pytorch import ToTensorV2
+from torch.utils.data import ConcatDataset, DataLoader, Dataset, Subset, random_split
 
-# Define paths to the rater and mask directories
-himachal_raster = ""
-himachal_mask = ""
 
-himlad_raster = ""
-himlad_mask = ""
-
-sikkim_raster = ""
-sikkim_mask = ""
-
-kashmir_raster = ""
-kashmir_mask = ""
-
-uttrakhand_raster = ""
-uttrakhand_mask = ""
-
-# Function to extract row and column from filename
+# Utility: sort patches correctly
 def extract_row_col(filename):
     match = re.search(r"r(\d+)_c(\d+)", filename)
     if match:
         return int(match.group(1)), int(match.group(2))
     return (0, 0)
 
+# Dataset
 class MultiBandSegmentationDataset(Dataset):
-    def __init__(self, image_dir, mask_dir,  transform=None):
+    def __init__(self, image_dir, mask_dir,  transform=None, top_bands=None, index_bands=None):
         self.image_dir = image_dir
         self.mask_dir = mask_dir
-        # self.top_bands = top_bands if top_bands else list(range(1,19))
-        # self.index_bands = index_bands if index_bands else[]
+
+        self.top_bands = top_bands if top_bands is not None else list(range(1, 19))
+        self.index_bands = index_bands if index_bands is not None else []
         self.transform = transform
 
-        # Sort by row/column instead of string order
+        # Sort by row/column
         self.image_files = sorted(
             [f for f in os.listdir(image_dir) if f.startswith('patch_')],
             key=extract_row_col
@@ -57,11 +45,12 @@ class MultiBandSegmentationDataset(Dataset):
         img_path = os.path.join(self.image_dir, self.image_files[idx])
         mask_path = os.path.join(self.mask_dir, self.mask_files[idx])
 
-        # Read 18-band image (bands 1 to 18 in rasterio are 1-indexed)
+        # Read 18-band image
         with rasterio.open(img_path) as src:
-            image = src.read(list(range(1, 19)))  # shape: (18, H, W)
-            image = np.transpose(image, (1, 2, 0))  # to shape (H, W, C)
+            image = src.read(self.top_bands)  # (C, H, W)
+            image = np.transpose(image, (1, 2, 0))  # (H, W, C)
 
+        # Read mask
         with rasterio.open(mask_path) as src:
             mask = src.read(1)  # shape: (H, W)
 
@@ -75,67 +64,95 @@ class MultiBandSegmentationDataset(Dataset):
 
         return image, mask
 
-# === Albumentations Transform ===
+# Albumentations Transform
 def get_transform():
-    return A.Compose([
-        A.RandomRotate90(p=0.5),
-        A.HorizontalFlip(p=0.5),
-        A.VerticalFlip(p=0.5),
-        A.Normalize(mean=[0.5] * 18, std=[0.5] * 18),
+    return a.Compose([
+        a.RandomRotate90(p=0.5),
+        a.HorizontalFlip(p=0.5),
+        a.VerticalFlip(p=0.5),
+        a.Normalize(mean=[0.5] * 18, std=[0.5] * 18),
         ToTensorV2(),
     ])
 
 
-# top_bands = [5, 17, 7, 1, 4, 2]  # Example top bands, can be modified as needed(if required to train on specific bands)
-# top_bands = [1, 2, 3, 4, 5, 6, 7, 8, 12, 15, 16, 17]
-# index_bands = [3, 5, 7, 8, 15]
-
-# Create datasets for training
-# put transform=get_transform() if you want to apply transformations
-ds_himachal = MultiBandSegmentationDataset(himachal_raster, himachal_mask,transform = None) 
-ds_himlad = MultiBandSegmentationDataset(himlad_raster, himlad_mask,transform = None)
-ds_sikkim = MultiBandSegmentationDataset(sikkim_raster, sikkim_mask,transform = None)
-ds_kashmir = MultiBandSegmentationDataset(kashmir_raster, kashmir_mask,transform = None)
-ds_uttrakhand = MultiBandSegmentationDataset(uttrakhand_raster, uttrakhand_mask,transform = None)
-
-
+# Helper: sample subset
 def sample_subset(dataset, fraction):
+    if fraction >= 1.0:
+        return dataset
     n = int(len(dataset) * fraction)
     indices = np.random.choice(len(dataset), n, replace=False)
     return Subset(dataset, indices)
-ds_himachal_sub = sample_subset(ds_himachal, 1)
-ds_himlad_sub = sample_subset(ds_himlad, 0.3)
-ds_sikkim_sub = sample_subset(ds_sikkim, 0.3)
-ds_kashmir_sub = sample_subset(ds_kashmir, 0.3)
-ds_uttrakhand_sub = sample_subset(ds_uttrakhand, 0.3)
 
-# Concatenate all datasets
-combined_dataset = ConcatDataset([ds_himachal, ds_himlad_sub, ds_sikkim_sub, ds_kashmir_sub, ds_uttrakhand_sub])
-# combined_dataset = ConcatDataset([ds_himachal, ds_himlad_sub, ds_uttrakhand_sub])
-val_ratio = 0.3
-val_size = int(len(combined_dataset) * val_ratio)
-train_size = len(combined_dataset) - val_size
-train_dataset, val_dataset = random_split(combined_dataset, [train_size, val_size])
+# Create train/val loaders
+def create_dataloaders(
+    dataset_configs,
+    batch_size=16,
+    val_ratio=0.3,
+    num_workers=4,
+    transform=None,
+    seed=42,
+):
+    """
+    dataset_configs: dict like:
+    {
+        "himachal": (img_dir, mask_dir, fraction),
+        "sikkim": (img_dir, mask_dir, fraction),
+    }
+    """
 
-# DataLoaders
-batch_size = 16
-train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, pin_memory=True, num_workers=4)
-val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, pin_memory=True, num_workers=4)
+    np.random.seed(seed)
 
-def get_dataloaders():
+    datasets = []
+
+    for _name, (img_dir, mask_dir, fraction) in dataset_configs.items():
+        ds = MultiBandSegmentationDataset(
+            img_dir,
+            mask_dir,
+            transform=transform,
+        )
+        ds = sample_subset(ds, fraction)
+        datasets.append(ds)
+
+    combined_dataset = ConcatDataset(datasets)
+
+    val_size = int(len(combined_dataset) * val_ratio)
+    train_size = len(combined_dataset) - val_size
+
+    train_dataset, val_dataset = random_split(
+        combined_dataset,
+        [train_size, val_size],
+    )
+
+    train_loader = DataLoader(
+        train_dataset,
+        batch_size=batch_size,
+        shuffle=True,
+        num_workers=num_workers,
+        pin_memory=True,
+    )
+
+    val_loader = DataLoader(
+        val_dataset,
+        batch_size=batch_size,
+        shuffle=False,
+        num_workers=num_workers,
+        pin_memory=True,
+    )
+
     return train_loader, val_loader
 
-# Create dataset for evaluation/testing
-def get_ordered_loader(image_dir, mask_dir, batch_size=32):
-    dataset = MultiBandSegmentationDataset(image_dir, mask_dir,transform=None)
-    return DataLoader(dataset, batch_size=batch_size, shuffle=False, pin_memory=True, num_workers=4)
-# Create test loaders for each region
-test_loader1 = get_ordered_loader(himachal_raster, himachal_mask, batch_size=8)
-test_loader2 = get_ordered_loader(himlad_raster, himlad_mask, batch_size=8)
-test_loader3 = get_ordered_loader(sikkim_raster, sikkim_mask, batch_size=8)
-test_loader4 = get_ordered_loader(kashmir_raster, kashmir_mask, batch_size=8)
-test_loader5 = get_ordered_loader(uttrakhand_raster, uttrakhand_mask, batch_size=8)
+# Test loader (ordered)
+def get_test_loader(image_dir, mask_dir, batch_size=8, num_workers=4):
+    dataset = MultiBandSegmentationDataset(
+        image_dir,
+        mask_dir,
+        transform=None,
+    )
 
-def get_test_loaders():
-    return test_loader1, test_loader2, test_loader3, test_loader4, test_loader5
-
+    return DataLoader(
+        dataset,
+        batch_size=batch_size,
+        shuffle=False,
+        num_workers=num_workers,
+        pin_memory=True,
+    )
