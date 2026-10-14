@@ -13,7 +13,8 @@ env/
 checkpoints/
 *.pth
 *.pt
-*.onnx
+*.onnx*
+outputs/weights/test_*
 
 # Python bytecode and caches
 __pycache__/

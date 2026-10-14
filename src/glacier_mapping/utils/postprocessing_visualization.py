@@ -6,8 +6,6 @@ import torch
 from scipy.ndimage import gaussian_filter
 from skimage import measure, morphology
 
-from glacier_mapping.main import get_test_output
-
 plt.rcParams["figure.dpi"] = 150
 plt.rcParams["font.size"] = 12
 
