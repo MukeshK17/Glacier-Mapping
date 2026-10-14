@@ -3,12 +3,14 @@ torch>=2.4.1
 torchvision>=0.19.1
 torchmetrics>=1.7.3
 torchsummary>=1.5.1
+timm>=0.9.12
 
 # Data processing & scientific computing
 numpy>=2.1.1
 pandas>=2.2.2
 scipy>=1.14.0
 scikit-learn>=1.5.0
+pyyaml>=6.0.1
 
 # Geospatial
 rasterio>=1.4.3
@@ -19,6 +21,10 @@ albumentations>=2.0.8
 # Visualization
 matplotlib>=3.10.1
 seaborn>=0.13.2
+
+# Deployment & Optimization
+onnx>=1.15.0
+onnxruntime>=1.17.0
 
 # Utilities
 tqdm>=4.67.1
