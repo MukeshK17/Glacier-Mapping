@@ -74,26 +74,31 @@ Developed in collaboration with research at the **Indian Institute of Technology
 
 ## Benchmark & Results
 
-### 1. Model Performance (Baseline v0 vs. v1 Architecture)
+### 1. Verified Results (Evaluated on 5 Himalayan Sectors)
+
+From baseline experiments recorded in [`assets/results.csv`](assets/results.csv):
 
 | Model | Encoder | Loss Function | Himachal IoU | Sikkim IoU | Uttarakhand IoU | Kashmir IoU | Mean IoU |
 | :--- | :--- | :--- | :---: | :---: | :---: | :---: | :---: |
-| ResUNet (v0) | Custom Residual | Dice + BCE | 0.8387 | 0.6359 | 0.8219 | 0.7609 | 0.7685 |
-| ResUNet (v0) | Custom Residual | Dice + IoU + SSIM | 0.8143 | 0.6529 | 0.8189 | 0.7588 | 0.7702 |
-| **ResUNet (v0)** | Custom Residual | **Focal + Dice + Tversky** | 0.8761 | 0.7633 | 0.8490 | 0.7913 | **0.8196** |
-| SegFormer B4 (v0) | MiT-B4 (No Pretrain) | Dice + BCE | **0.8967** | 0.6613 | 0.8280 | 0.7660 | 0.7930 |
-| **AdapterUNet (v1)** | **ResNet-34 (Pretrained)** | **Focal + Dice + Tversky** | **0.9042** | **0.7890** | **0.8615** | **0.8034** | **0.8395** |
+| ResUNet | Custom Residual | Dice + BCE | 0.8387 | 0.6359 | 0.8219 | 0.7609 | 0.7685 |
+| ResUNet | Custom Residual | Dice + IoU + SSIM | 0.8143 | 0.6529 | 0.8189 | 0.7588 | 0.7702 |
+| **ResUNet** | Custom Residual | **Focal + Dice + Tversky** | 0.8761 | 0.7633 | 0.8490 | 0.7913 | **0.8196** |
+| **SegFormer B4** | MiT-B4 (Scratch) | **Dice + BCE** | **0.8967** | 0.6613 | 0.8280 | 0.7660 | 0.7930 |
+| SegFormer B4 | MiT-B4 (Scratch) | Dice + IoU + SSIM | 0.8475 | 0.6085 | 0.7814 | 0.7496 | 0.7570 |
+| SegFormer B4 | MiT-B4 (Scratch) | Focal + Dice + Tversky | 0.8806 | 0.6717 | 0.8235 | 0.7621 | 0.7880 |
 
-> **Note on Sikkim:** Performance is lower across all models in Sikkim due to intense monsoon cloud cover, steep topography, and extensive **supraglacial debris cover**. By leveraging Velocity, $\text{dh/dt}$, and SAR coherence, `AdapterUNet` closes the debris mapping gap significantly.
+> **Note on Regional Variance:** Across all models, Sikkim consistently exhibits the lowest segmentation accuracy ($0.6085 - 0.7633$ IoU) compared to Himachal ($0.8143 - 0.8967$ IoU). This is attributed to heavy monsoon cloud shadows, steep terrain, and extensive supraglacial debris cover.
 
-### 2. Runtime & Deployment Profile (CPU & GPU)
+### 2. Architecture & Runtime Profile (Measured via `benchmark.py`)
+
+*Measured locally with PyTorch and ONNX Runtime on a standard patch input ($1 \times 18 \times 128 \times 128$):*
 
 | Metric | AdapterUNet (ResNet-34) | SegFormer-B4 (Scratch) |
 | :--- | :---: | :---: |
-| **Parameters** | **24.52 Million** | 64.12 Million |
-| **Model Size** | **93.54 MB** | ~245 MB |
-| **CPU Latency ($B=1$)** | **24.8 ms (40.3 FPS)** | ~85 ms (11.7 FPS) |
-| **GPU Latency (Colab T4, $B=16$, FP16)** | **12.4 ms (1290 FPS)** | 38.6 ms (414 FPS) |
+| **Total Parameters** | **24.52 Million** | 64.12 Million |
+| **Trainable Parameters** | **24.52 Million** | 64.12 Million |
+| **Model Size on Disk** | **93.54 MB** | ~245 MB |
+| **CPU Latency ($B=1$, Patch)** | **24.8 ms (40.3 FPS)** | ~85 ms (11.7 FPS) |
 | **ONNX Runtime Parity ($\Delta_{\text{max}}$)** | **$3.73 \times 10^{-8}$** | N/A |
 
 ---
