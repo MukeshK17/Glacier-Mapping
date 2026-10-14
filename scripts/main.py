@@ -1,89 +1,117 @@
+import argparse
+import os
+import sys
+
+# Ensure src is on python path
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "src")))
+
 import pandas as pd
 import torch
 
-# Device
-torch.manual_seed(42)
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-
-# Models
-from glacier_mapping.models.ResUNet import ResUNet
-from glacier_mapping.models.SegFormerb4 import segformer_model
-
-# Losses
-from glacier_mapping.losses.FocalDiceTversky import CombinedLoss as FocalDiceTverskyLoss
-from glacier_mapping.losses.DiceIoUSSIM import CombinedLoss as DiceIoUSSIMLoss
-from glacier_mapping.losses.DiceBCE import CombinedLoss as DiceBCELoss
-
-# Training and Evaluation
-from glacier_mapping.training.train import train_model
-from glacier_mapping.training.evaluate import evaluate
-
-# Dataloader
 from glacier_mapping.data.dataloader import create_dataloaders, get_test_loader
+from glacier_mapping.losses.DiceBCE import CombinedLoss as DiceBCELoss
+from glacier_mapping.losses.DiceIoUSSIM import CombinedLoss as DiceIoUSSIMLoss
+from glacier_mapping.losses.FocalDiceTversky import CombinedLoss as FocalDiceTverskyLoss
+from glacier_mapping.models.AdapterUNet import AdapterUNet
+from glacier_mapping.models.ResUNet import ResUNet
+from glacier_mapping.training.evaluate import evaluate
+from glacier_mapping.training.train import train_model
 
-# Dataset configuration
-dataset_configs = {
-    "himachal": ("path1", "path2", 1.0, [5, 17, 7, 1, 4, 2]),
-    "himlad": ("path3", "path4", 0.3, None),
-    "sikkim": ("path5", "path6", 0.3, None),
-    "kashmir": ("path7", "path8", 0.3, None),
-    "uttrakhand": ("path9", "path10", 0.3, None),
-}
-train_loader, val_loader = create_dataloaders(dataset_configs)
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+torch.manual_seed(42)
 
-# Test loaders
-test_loader1 = get_test_loader("path1", "path2")
-test_loader2 = get_test_loader("path3", "path4")
-test_loader3 = get_test_loader("path5", "path6")
-test_loader4 = get_test_loader("path7", "path8")
-test_loader5 = get_test_loader("path9", "path10")
 
-# Model + Loss
-model = segformer_model().to(device) # or ResUNet()
-criterion = FocalDiceTverskyLoss()
+def main():
+    parser = argparse.ArgumentParser(description="Glacier Mapping End-to-End Baseline Pipeline")
+    parser.add_argument("--data_dir", type=str, default="datasets128", help="Path to datasets root")
+    parser.add_argument("--model", type=str, default="adapter_unet", choices=["adapter_unet", "resunet"])
+    parser.add_argument("--backbone", type=str, default="resnet34", help="Backbone for AdapterUNet")
+    parser.add_argument("--loss", type=str, default="focal_dice_tversky", help="Loss function")
+    parser.add_argument("--epochs", type=int, default=30, help="Epochs")
+    parser.add_argument("--batch_size", type=int, default=16, help="Batch size")
+    parser.add_argument("--lr", type=float, default=1e-4, help="Learning rate")
+    args = parser.parse_args()
 
-# Train
-
-train_data = train_model(
-    model,
-    train_loader,
-    val_loader,
-    criterion = criterion,
-    epochs=500,
-    patience=25,
-    lr=1e-5)
-
-model.load_state_dict(torch.load('best_model.pth', map_location=device))
-
-# Evaluate
-# Note:
-# Returns (metrics, predictions, ground truths, rasters, confusion matrix)
-# Metrics include: loss, IoU, accuracy, precision, recall, f1, dice, kappa
-
-test_metrics1, pred1, gt1, rt1, cm1 = evaluate(model, test_loader1, return_predictions = True)
-test_metrics2, pred2, gt2, rt2, cm2 = evaluate(model, test_loader2, return_predictions = True)
-test_metrics3, pred3, gt3, rt3, cm3 = evaluate(model, test_loader3, return_predictions = True)
-test_metrics4, pred4, gt4, rt4, cm4 = evaluate(model, test_loader4, return_predictions = True)
-test_metrics5, pred5, gt5, rt5, cm5 = evaluate(model, test_loader5, return_predictions = True)
-
-# Output
-
-def get_test_output():
-    return {
-        "Himachal": (test_metrics1, pred1, gt1, rt1, cm1),
-        "Himachal Ladakh": (test_metrics2, pred2, gt2, rt2, cm2),
-        "Sikkim": (test_metrics3, pred3, gt3, rt3, cm3),
-        "Kashmir": (test_metrics4, pred4, gt4, rt4, cm4),
-        "Uttrakhand": (test_metrics5, pred5, gt5, rt5, cm5),
+    # Paths configuration
+    dataset_configs = {
+        "himachal": (
+            os.path.join(args.data_dir, "himachal_128", "images"),
+            os.path.join(args.data_dir, "himachal_128", "masks"),
+            1.0,
+        ),
+        "himlad": (
+            os.path.join(args.data_dir, "himachal_ladakh_128", "images"),
+            os.path.join(args.data_dir, "himachal_ladakh_128", "masks"),
+            0.3,
+        ),
+        "sikkim": (
+            os.path.join(args.data_dir, "sikkim128", "images"),
+            os.path.join(args.data_dir, "sikkim128", "masks"),
+            0.3,
+        ),
+        "kashmir": (
+            os.path.join(args.data_dir, "kashmir128", "images"),
+            os.path.join(args.data_dir, "kashmir128", "masks"),
+            0.3,
+        ),
+        "uttrakhand": (
+            os.path.join(args.data_dir, "uttrakhand128", "images"),
+            os.path.join(args.data_dir, "uttrakhand128", "masks"),
+            0.3,
+        ),
     }
 
-# Report Metrices
+    # Verify data existence
+    existing_configs = {k: v for k, v in dataset_configs.items() if os.path.exists(v[0]) and os.path.exists(v[1])}
+    if not existing_configs:
+        print(f"No datasets found in '{args.data_dir}'. Please verify your data directory.")
+        return
 
-Region_names = ['Himachal', 'Himachal Ladakh', 'Sikkim', 'Kashmir', 'Uttrakhand']
-metrics_list = [test_metrics1, test_metrics2, test_metrics3, test_metrics4, test_metrics5]
+    train_loader, val_loader = create_dataloaders(existing_configs, batch_size=args.batch_size)
 
-df = pd.DataFrame(metrics_list)
-df.index = Region_names
+    # Initialize Model
+    if args.model == "adapter_unet":
+        model = AdapterUNet(in_channels=18, backbone=args.backbone, pretrained=True).to(device)
+    else:
+        model = ResUNet(in_channels=18, out_channels=1).to(device)
 
-print(df)
+    # Loss
+    if args.loss == "focal_dice_tversky":
+        criterion = FocalDiceTverskyLoss()
+    elif args.loss == "dice_iou_ssim":
+        criterion = DiceIoUSSIMLoss()
+    else:
+        criterion = DiceBCELoss()
 
+    # Train
+    print(f"Training {args.model} on {len(existing_configs)} regions with {args.loss}...")
+    train_model(
+        model=model,
+        train_loader=train_loader,
+        val_loader=val_loader,
+        criterion=criterion,
+        epochs=args.epochs,
+        patience=10,
+        lr=args.lr,
+        device=device,
+        use_amp=True,
+    )
+
+    # Evaluate on individual regions
+    print("\n--- Final Evaluation Across Regions ---")
+    metrics_list = []
+    region_names = []
+
+    for name, (img_dir, mask_dir, *_) in existing_configs.items():
+        test_loader = get_test_loader(img_dir, mask_dir, batch_size=args.batch_size)
+        metrics, _ = evaluate(model, test_loader, criterion=criterion, device=device)
+        metrics_list.append(metrics)
+        region_names.append(name.capitalize())
+
+    df = pd.DataFrame(metrics_list, index=region_names)
+    print("\nEvaluation Metrics Table:")
+    print(df)
+
+
+if __name__ == "__main__":
+    main()

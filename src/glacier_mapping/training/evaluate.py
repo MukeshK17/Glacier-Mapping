@@ -1,46 +1,63 @@
+
 import numpy as np
 import torch
 import torch.nn.functional as F
 from sklearn.metrics import confusion_matrix
 
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-torch.manual_seed(42)
-if device.type == 'cuda':
-    torch.cuda.manual_seed_all(42)
+DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-def evaluate(model, loader, criterion, return_predictions=False, plot_confusion_matrix=False):
-    model = model.to(device)
+
+def evaluate(
+    model: torch.nn.Module,
+    loader: torch.utils.data.DataLoader,
+    criterion: torch.nn.Module | None = None,
+    device: torch.device | None = None,
+    return_predictions: bool = False,
+    threshold: float = 0.5,
+) -> tuple:
+    """
+    Evaluates segmentation model on a given dataloader.
+    Computes loss, IoU, Accuracy, Precision, Recall, F1, Dice, and Cohen's Kappa.
+    """
+    dev = device or DEVICE
+    model = model.to(dev)
     model.eval()
+
     if hasattr(model, "module"):
         model = model.module
 
     eps = 1e-7
-
-    total_loss = 0
-    total_cm = np.zeros((2, 2))
+    total_loss = 0.0
+    total_cm = np.zeros((2, 2), dtype=np.int64)
     all_preds, all_gts, all_rasters = [], [], []
+
+    has_batches = len(loader) > 0
 
     with torch.no_grad():
         for x, y in loader:
-            x, y = x.to(device), y.to(device)
+            x = x.to(dev)
+            y = y.to(dev)
+
             outputs = model(x)
             logits = outputs.logits if hasattr(outputs, "logits") else outputs
-            logits = F.interpolate(logits, size=y.shape[-2:], mode='bilinear', align_corners=False)
+            logits = F.interpolate(logits, size=y.shape[-2:], mode="bilinear", align_corners=False)
 
-            if y.ndim == 3: # [B, 1, H, W]
+            if y.ndim == 3:
                 y = y.unsqueeze(1)
             elif y.ndim == 4 and y.shape[1] != 1:
                 y = y[:, :1, :, :]
 
             probs = torch.sigmoid(logits)
-            preds = (probs > 0.5).float()
+            preds = (probs > threshold).float()
 
-            loss = criterion(logits, y.float())
-            total_loss += loss.item()
+            if criterion is not None:
+                loss = criterion(logits, y.float())
+                total_loss += loss.item()
+            else:
+                total_loss += F.binary_cross_entropy(probs, y.float()).item()
 
-            # Remove channel dimension for metric calculation
-            preds_np = preds.view(-1).cpu().numpy().astype(bool)
-            y_np = y.view(-1).cpu().numpy().astype(bool)
+            preds_np = (preds > 0.5).view(-1).cpu().numpy().astype(bool)
+            y_np = (y > 0.5).view(-1).cpu().numpy().astype(bool)
             batch_cm = confusion_matrix(y_np, preds_np, labels=[0, 1])
             total_cm += batch_cm
 
@@ -52,19 +69,23 @@ def evaluate(model, loader, criterion, return_predictions=False, plot_confusion_
     tn, fp, fn, tp = total_cm.ravel()
 
     metrics = {
-        'loss': total_loss / len(loader),
-        'iou': (tp + eps) / (tp + fp + fn + eps),
-        'accuracy': (tp + tn + eps) / (tp + tn + fp + fn + eps),
-        'precision': (tp + eps) / (tp + fp + eps),
-        'recall': (tp + eps) / (tp + fn + eps),
-        'f1': (2 * (tp + eps)) / (2 * tp + fp + fn + eps),
-        'dice': (2 * tp + eps) / (2 * tp + fp + fn + eps),
-        'kappa': ((tp + tn)/ (tp + tn + fp + fn) -
-                 (((tp + fp)*(tp + fn)+(fn + tn)*(fp + tn))/(tp + tn + fp + fn)**2))
-                 / (1 - (((tp + fp)*(tp + fn)+(fn + tn)*(fp + tn))/(tp + tn + fp + fn)**2) + eps)
+        "loss": (total_loss / len(loader)) if has_batches else 0.0,
+        "iou": float((tp + eps) / (tp + fp + fn + eps)),
+        "accuracy": float((tp + tn + eps) / (tp + tn + fp + fn + eps)),
+        "precision": float((tp + eps) / (tp + fp + eps)),
+        "recall": float((tp + eps) / (tp + fn + eps)),
+        "f1": float((2 * tp + eps) / (2 * tp + fp + fn + eps)),
+        "dice": float((2 * tp + eps) / (2 * tp + fp + fn + eps)),
     }
+
+    total_pixels = tp + tn + fp + fn
+    if total_pixels > 0:
+        po = (tp + tn) / total_pixels
+        pe = ((tp + fp) * (tp + fn) + (fn + tn) * (fp + tn)) / (total_pixels**2)
+        metrics["kappa"] = float((po - pe) / (1 - pe + eps))
+    else:
+        metrics["kappa"] = 0.0
 
     if return_predictions:
         return metrics, all_preds, all_gts, all_rasters, total_cm
-    else:
-        return metrics, total_cm
+    return metrics, total_cm

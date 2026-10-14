@@ -6,8 +6,6 @@ import torch
 from scipy.ndimage import gaussian_filter
 from skimage import measure, morphology
 
-from glacier_mapping.main import get_test_output
-
 plt.rcParams["figure.dpi"] = 150
 plt.rcParams["font.size"] = 12
 
@@ -81,10 +79,18 @@ def compute_post_iou(cleaned_pred, gt_mask):
 
 
 if __name__ == "__main__":
+    import sys
+
     output_dir = "outputs/visualizations"
     os.makedirs(output_dir, exist_ok=True)
 
-    test_output = get_test_output()
+    try:
+        from scripts.main import get_test_output
+
+        test_output = get_test_output()
+    except (ImportError, AttributeError):
+        print("Run scripts/main.py or scripts/infer_scene.py to generate test outputs.")
+        sys.exit(0)
 
     regions = [
         {"name": "Himachal", "rows": 80, "cols": 83},

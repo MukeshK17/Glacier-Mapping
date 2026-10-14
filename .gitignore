@@ -2,3 +2,30 @@
 .venv/
 venv/
 env/
+
+# Datasets and large satellite rasters (workspace root only)
+/datasets*/
+/data/
+*.tif
+*.tiff
+
+# Checkpoints and model weights (exclude large binaries from git)
+checkpoints/
+*.pth
+*.pt
+*.onnx*
+outputs/weights/test_*
+
+# Python bytecode and caches
+__pycache__/
+*.py[cod]
+*$py.class
+.ruff_cache/
+.pytest_cache/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# OS specific
+.DS_Store
+Thumbs.db
