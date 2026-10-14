@@ -3,9 +3,9 @@
 venv/
 env/
 
-# Datasets and large satellite rasters
-datasets*/
-data/
+# Datasets and large satellite rasters (workspace root only)
+/datasets*/
+/data/
 *.tif
 *.tiff
 
