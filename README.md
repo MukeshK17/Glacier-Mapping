@@ -1,50 +1,73 @@
-# Glacier-Mapping Using Deep Learning
+# Glacier Mapping Using Deep Learning
 
-This project focuses on **semantic segmentation of glaciers in the Indian Himalayas** using deep learning models. It is part of an internship at the Indian Institute of Technology Roorkee.
+This project focuses on **semantic segmentation of glaciers in the Indian Himalayas** using deep learning models. It was developed as part of an internship at the Indian Institute of Technology Roorkee.
+
+---
 
 ## Project Objective
 
-To **accurately map glacier regions** using multi-band satellite imagery and reduce manual labor in monitoring glacier retreat. The aim is to enable **long-term glacial change analysis** using automated tools.
+To **automatically map glacier regions** from multi-band satellite imagery and reduce manual effort in monitoring glacier retreat. The goal is to support **long-term glacial change analysis** using scalable ML pipelines.
+
+---
 
 ## Repository Structure
 
-- `models/`: Contains implementations of **ResUNet** (CNN) and **Segformer B4** (Transformer).
-- `losses/`: Combinations of loss functions like Dice, IoU, Focal, BCE, and Tversky.
-- `train.py`, `evaluate.py`: Model training and evaluation scripts.
-- `dataloader.py`: Custom data loader for handling raster and mask inputs.
-- `patches.py`: Generates 128×128 pixel patches from large raster files.
-- `main.py`: End-to-end pipeline runner.
-- `postprocessing_visualization/`: Visual overlays of predictions vs. ground truth.
-- `weights/`: Pretrained model weights for different loss combinations.
-- `requirements.txt`: Python dependencies.
-- `README.md`: You're here :)
+src/glacier_mapping/
+│
+├── data/ # Dataloader and dataset logic
+├── models/ # ResUNet and SegFormer B4
+├── losses/ # Custom loss functions
+├── training/ # train.py and evaluate.py
+├── utils/ # Band analysis & visualization tools
+│
+outputs/ # predictions, weights, visualizations
+notebooks/ # experiments
+scripts/ # entry scripts
+
+---
 
 ## Dataset
 
-Provided by **Sarvesh Verma**, the dataset includes 18-band satellite raster `.tif` files and glacier masks from 5 regions:
-- Himachal
-- Himachal–Ladakh
-- Kashmir
-- Sikkim
-- Uttarakhand
+Provided by **Sarvesh Verma**, the dataset contains 18-band satellite `.tif` rasters and glacier masks from:
 
-Bands include **NIR, Slope, Thermal, SWIR, Elevation**, etc.
+- Himachal  
+- Himachal–Ladakh  
+- Kashmir  
+- Sikkim  
+- Uttarakhand  
+
+Bands include:
+**NIR, SWIR, Thermal Infrared, Elevation (DEM), Slope, Velocity, Backscatter**, etc.
+
+---
 
 ## Models Used
 
-- **ResUNet**: A hybrid of ResNet and UNet with residual connections to avoid vanishing gradients.
-- **Segformer B4**: A state-of-the-art Transformer-based model with MiT (Mix Vision Transformer) encoder and lightweight MLP decoder.
+### ResUNet
+- UNet-based architecture with residual connections  
+- Helps improve gradient flow and stability  
+
+### SegFormer B4
+- Transformer-based segmentation model  
+- MiT encoder + lightweight decoder  
+
+---
 
 ## Results
 
-- **ResUNet (Focal + Dice + Tversky Loss)**: Achieved **Mean IoU ≈ 82%**
-- **Segformer B4 (Dice + BCE Loss)**: Achieved **Mean IoU ≈ 79%**
+| Model | Loss | Mean IoU |
+|------|------|---------|
+| ResUNet | Focal + Dice + Tversky | ~82% |
+| SegFormer B4 | Dice + BCE | ~79% |
+
+---
 
 ## Visual Results
 
-Yellow = Ground Truth | Red = Prediction
+**Yellow = Ground Truth | Red = Prediction**
 
-**ResUNet (Dice + BCE Loss) – Uttarakhand Region**
+### ResUNet (Dice + BCE Loss) – Uttarakhand
+
 
 <p float="left">
   <img src="https://github.com/MukeshK17/Glacier-Mapping/blob/main/assets/Results%20ResUNet/BCE%20%2B%20DICE%20loss/Uttrakhand.png" width="45%">
@@ -55,17 +78,23 @@ Yellow = Ground Truth | Red = Prediction
 
 ![Results](https://github.com/MukeshK17/Glacier-Mapping/blob/main/assets/Results.jpg)
 
-### Current Work
+---
 
-Currently trying to improve the IoU and other matrices using Ensemble of ResUNet and SegfomerB4 on a Tiny UNet model(meta model). 
+## Current Work
+
+- Improving performance using **ensemble learning**
+- Combining:
+  - ResUNet  
+  - SegFormer B4  
+- Using a **Tiny UNet meta-model**
+
+---
 
 ## Acknowledgements
 
-Grateful to:
-- **Prof. Sparsh Mittal** (IIT Roorkee)
-- **Prof. Saurabh Vijay** (IIT Roorkee)
-- **Sarvesh Verma** (PhD Scholar, IIT Roorkee)
-- **Sarthak Patil** (Student, IIT BHU)
+- **Prof. Sparsh Mittal** (IIT Roorkee)  
+- **Prof. Saurabh Vijay** (IIT Roorkee)  
+- **Sarvesh Verma** (PhD Scholar, IIT Roorkee)  
+- **Sarthak Patil** (IIT BHU)  
 
-For guidance, mentorship, and data support during the internship.
-
+For guidance, mentorship, and dataset support.
