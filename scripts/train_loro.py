@@ -40,7 +40,19 @@ def find_region_directories(data_dir: str) -> dict[str, tuple[str, str]]:
         matched_dir = None
         for d in subdirs:
             d_lower = d.lower().replace("-", "_").replace(" ", "_")
-            if r_key == "himlad" and ("ladakh" in d_lower or "himlad" in d_lower) or r_key == "uttrakhand" and ("uttrakhand" in d_lower or "uttarakhand" in d_lower) or r_key in d_lower:
+            is_match = False
+            if r_key == "himlad":
+                is_match = "ladakh" in d_lower or "himlad" in d_lower
+            elif r_key == "himachal":
+                is_match = "himachal" in d_lower and "ladakh" not in d_lower
+            elif r_key == "uttrakhand":
+                is_match = "uttrakhand" in d_lower or "uttarakhand" in d_lower
+            elif r_key == "kashmir":
+                is_match = "kashmir" in d_lower
+            elif r_key == "sikkim":
+                is_match = "sikkim" in d_lower
+
+            if is_match:
                 matched_dir = d
                 break
 
